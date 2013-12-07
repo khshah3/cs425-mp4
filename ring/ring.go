@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	heartbeatThreshold = 20
+	heartbeatThreshold = 25
 )
 
 type Ring struct {
@@ -292,6 +292,7 @@ func (self *Ring) handleGossip(senderAddr, subject string) {
 	// TODO add sender if it doesn't exist yet
 
 	subjectMember := data.Unmarshal(subject)
+
 	if subjectMember == nil {
 		return
 	}
@@ -301,6 +302,7 @@ func (self *Ring) handleGossip(senderAddr, subject string) {
 		self.Usertable[senderAddr].SetHeartBeat(0)
 	}
 	self.updateMember(subjectMember)
+	//fmt.Println("Updating Heartbeat to ", senderAddr, self.Usertable[senderAddr].Heartbeat)
 }
 
 //Join the group by finding successor and getting all the required data from it
@@ -442,11 +444,14 @@ func (self *Ring) doUserTableGossip() {
 		return
 	}
 	receiver := self.getRandomMember()
+	//fmt.Println(receiver.Address)
 	for _, subject := range self.Usertable {
 
-		subject.IncrementHeartBeat()
+		if subject.Address != net.JoinHostPort(self.Address, self.Port) {
+			subject.IncrementHeartBeat()
+		}
 		if subject.Heartbeat > heartbeatThreshold && subject.Id != -1 {
-			log.Println("MACHINE DEAD!", subject.Id)
+			log.Println("MACHINE DEAD!", subject.Id, subject.Heartbeat)
 			//Deletes the member in the userkeytable
 			self.updateMember(data.NewGroupMember(-1, subject.Address, subject.Heartbeat, Leaving))
 		}
@@ -507,6 +512,7 @@ func sendMessage(message, address string) (err error) {
 	//log.Printf("Sending '%s' to %s..", message, raddr)
 	logger.Log("INFO", "Sending "+message)
 	if _, err = con.Write([]byte(message)); err != nil {
+
 		log.Panic("Writing to UDP:", err)
 		logger.Log("ERROR", "Writing to UDP")
 	}

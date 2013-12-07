@@ -14,5 +14,5 @@ func NewDataStore(key int, value string) *DataStore {
 }
 
 func NilDataStore() DataStore {
-  return *NewDataStore(-1, "")
+	return *NewDataStore(-1, "")
 }

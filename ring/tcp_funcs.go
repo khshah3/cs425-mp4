@@ -45,7 +45,30 @@ func (self *Ring) SendData(sentData *data.DataStore, response *RpcResult) error 
 		inserted := self.KeyValTable.Insert(data.DataStore{(*sentData).Key, (*sentData).Value})
 		response.Success = Btoi(inserted)
 		if response.Success != 1 {
-			fmt.Println("Cannot store date: Should not happen unless machine gone")
+			fmt.Println("Cannot store data: Should not happen unless machine gone")
+		} else {
+			response.Success = self.writeToReplicas(sentData, self.Usertable[myAddr].Id)
+		}
+	}
+
+	return nil
+}
+
+//Write data specifically to the given machine -- similar to insert except doesnt check for the latest machine
+func (self *Ring) WriteData(sentData *data.DataStore, response *RpcResult) error {
+
+	if (self.KeyValTable.DeleteWithKey(data.DataStore{(*sentData).Key, ""})) {
+		response.Success = 1
+	}
+
+	fmt.Println("Deleting ", ((*sentData).Key))
+	//TODO:: Probaby a better way to ensure that we are not just deleting data
+	if ((*sentData).Value) != "##DELETE##" {
+		fmt.Println("Inserting ", ((*sentData).Key), (*sentData).Value)
+		inserted := self.KeyValTable.Insert(data.DataStore{(*sentData).Key, (*sentData).Value})
+		response.Success = Btoi(inserted)
+		if response.Success != 1 {
+			fmt.Println("Replica does not want to store data :(")
 		}
 	}
 
@@ -57,6 +80,8 @@ func (self *Ring) RemoveData(args *data.DataStore, response *RpcResult) error {
 	deleted := self.KeyValTable.DeleteWithKey(data.DataStore{(*args).Key, ""})
 	response.Success = Btoi(deleted)
 	response.Member = nil
+	myAddr := net.JoinHostPort(self.Address, self.Port)
+
 	if response.Success != 1 {
 		machineAddr := self.getMachineForKey(args.Key).Value
 		myAddr := net.JoinHostPort(self.Address, self.Port)
@@ -65,7 +90,9 @@ func (self *Ring) RemoveData(args *data.DataStore, response *RpcResult) error {
 		} else {
 			fmt.Println("Data doesnt exist")
 		}
-
+	} else {
+		(*args).Value = "##DELETE##"
+		response.Success = self.writeToReplicas(args, self.Usertable[myAddr].Id)
 	}
 	return nil
 }
@@ -93,6 +120,7 @@ func (self *Ring) GetData(args *data.DataStore, response *RpcResult) error {
 /* Update : Delete the current data, then add the new */
 func (self *Ring) UpdateData(sentData *data.DataStore, response *RpcResult) error {
 	deleted := self.KeyValTable.DeleteWithKey(data.DataStore{(*sentData).Key, ""})
+	myAddr := net.JoinHostPort(self.Address, self.Port)
 	if !deleted {
 		machineAddr := self.getMachineForKey(sentData.Key).Value
 		myAddr := net.JoinHostPort(self.Address, self.Port)
@@ -107,6 +135,8 @@ func (self *Ring) UpdateData(sentData *data.DataStore, response *RpcResult) erro
 		response.Success = Btoi(inserted)
 		if response.Success != 1 {
 			fmt.Println("Cannot update date: Should not happen unless machine gone")
+		} else {
+			response.Success = self.writeToReplicas(sentData, self.Usertable[myAddr].Id)
 		}
 	}
 
