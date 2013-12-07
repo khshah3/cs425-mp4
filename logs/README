@@ -1,0 +1,6 @@
+This is here so that the logs directory exists (since we don't want to commit logs, 
+but the code breaks if the dir doesn't exist)
+
+Ideally, we should change this in logger.go, so that it creates the directory if
+it doesn't already exist. But in the interest of time, I'm putting this here so
+that we can add the folder to source control, but just ignore any logs in it.
