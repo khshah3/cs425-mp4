@@ -57,10 +57,8 @@ func (self *Ring) SendData(sentData *data.DataStore, response *RpcResult) error 
 //Write data specifically to the given machine -- similar to insert except doesnt check for the latest machine
 func (self *Ring) WriteData(sentData *data.DataStore, response *RpcResult) error {
 
-	if (self.KeyValTable.DeleteWithKey(data.DataStore{(*sentData).Key, ""})) {
-		response.Success = 1
-	}
-
+	deleted := self.KeyValTable.DeleteWithKey(data.DataStore{(*sentData).Key, ""})
+	response.Success = Btoi(deleted)
 	fmt.Println("Deleting ", ((*sentData).Key))
 	//TODO:: Probaby a better way to ensure that we are not just deleting data
 	if ((*sentData).Value) != "##DELETE##" {
@@ -71,12 +69,12 @@ func (self *Ring) WriteData(sentData *data.DataStore, response *RpcResult) error
 			fmt.Println("Replica does not want to store data :(")
 		}
 	}
-
 	return nil
 }
 
 /* Remove */
 func (self *Ring) RemoveData(args *data.DataStore, response *RpcResult) error {
+
 	deleted := self.KeyValTable.DeleteWithKey(data.DataStore{(*args).Key, ""})
 	response.Success = Btoi(deleted)
 	response.Member = nil

@@ -21,14 +21,14 @@ type CompareFunc func(a, b Item) int
 
 type Tree struct {
 	// Root of the tree
-	root             *node
+	root *node
 
 	// The minimum and maximum nodes under the root.
 	minNode, maxNode *node
 
 	// Number of nodes under root, including the root
-	count            int
-	compare          CompareFunc
+	count   int
+	compare CompareFunc
 }
 
 // Create a new empty tree.
@@ -66,7 +66,7 @@ func (root *Tree) Max() Iterator {
 		// Perhaps set maxNode=negativeLimit when the tree is empty
 		return Iterator{root, negativeLimitNode}
 	}
-	return  Iterator{root, root.maxNode}
+	return Iterator{root, root.maxNode}
 }
 
 // Create an iterator that points beyond the maximum item in the tree
@@ -76,7 +76,7 @@ func (root *Tree) Limit() Iterator {
 
 // Create an iterator that points before the minimum item in the tree
 func (root *Tree) NegativeLimit() Iterator {
-	return  Iterator{root, negativeLimitNode}
+	return Iterator{root, negativeLimitNode}
 }
 
 // Find the smallest element N such that N >= key, and return the
@@ -173,8 +173,10 @@ func (root *Tree) Insert(item Item) bool {
 // Delete an item with the given key. Return true iff the item was
 // found.
 func (root *Tree) DeleteWithKey(key Item) bool {
-	iter := root.FindGE(key)
-	if iter.node != nil {
+	n, exact := root.findGE(key)
+
+	iter := Iterator{root, n}
+	if iter.node != nil && exact {
 		root.DeleteWithIterator(iter)
 		return true
 	}
@@ -473,7 +475,6 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 	}
 	panic("should not reach here")
 }
-
 
 // Delete N from the tree.
 func (root *Tree) doDelete(n *node) {

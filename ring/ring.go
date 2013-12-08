@@ -122,13 +122,17 @@ func (self *Ring) callSuccessorRPC(key int, function string, args *data.DataStor
 
 /* The actual Operations exposed over RPC */
 func (self *Ring) Insert(key int, val string) {
+
 	args := data.NewDataStore(key, val)
 	result := self.callSuccessorRPC(key, "Ring.SendData", args)
 
 	//Found New Member
-	if result.Success != 1 && result.Member != nil {
-		self.updateMember(result.Member)
-		self.Insert(key, val)
+	for result.Success != 1 {
+
+		if result.Member != nil {
+			self.updateMember(result.Member)
+			self.Insert(key, val)
+		}
 	}
 }
 
