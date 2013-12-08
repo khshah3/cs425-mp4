@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	Leaving = iota
+	DataSentAndLeft = iota
+	Leaving
 	Stable
 	Joining
 )
@@ -111,6 +112,7 @@ func (self *Ring) callSuccessorRPC(key int, function string, args *data.DataStor
 	err := client.Call(function, args, &result)
 	if err != nil {
 		fmt.Println("Error sending data:", err)
+		result.Success = -2
 		return
 	}
 	if result.Success != 1 {
@@ -126,14 +128,21 @@ func (self *Ring) Insert(key int, val string) {
 	args := data.NewDataStore(key, val)
 	result := self.callSuccessorRPC(key, "Ring.SendData", args)
 
-	//Found New Member
-	for result.Success != 1 {
+	if result.Member != nil && result.Success != 1 {
+		self.updateMember(result.Member)
+		self.Insert(key, val)
+	} else {
+		timeout := 3
+		i := 0
+		//Found New Member
+		fmt.Println(result.Success)
+		for result.Success == -2 && i < timeout {
+			i++
+			result = self.callSuccessorRPC(key, "Ring.SendData", args)
 
-		if result.Member != nil {
-			self.updateMember(result.Member)
-			self.Insert(key, val)
 		}
 	}
+
 }
 
 func (self *Ring) Update(key int, val string) {
@@ -200,7 +209,8 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 		if member.Movement >= movement {
 			self.Usertable[updatedMember.Address] = updatedMember
 			if ((movement == Joining || member.Movement == Joining) && (key > lastKey)) ||
-				((movement == Leaving || member.Movement == Leaving) && (key < lastKey)) {
+				((movement == Leaving || member.Movement == Leaving) && (key < lastKey)) ||
+				((movement == DataSentAndLeft || member.Movement == DataSentAndLeft) && (key < lastKey)) {
 
 				fmt.Printf("Deleting member with ID %d FROM %s", lastKey, updatedMember.Address)
 				self.UserKeyTable.DeleteWithKey(data.LocationStore{lastKey, ""})
@@ -329,10 +339,15 @@ func (self *Ring) JoinGroup(address string) (err error) {
 	}
 	fmt.Println(successor)
 	//Get smallest key less then key and initiate data transfer
-	var data_t data.DataStore
+	var data_t []*data.DataStore
 	err = client.Call("Ring.GetEntryData", argi, &data_t)
 
-	fmt.Printf("Transferring Data Key: %d Value: %s", data_t.Key, data_t.Value)
+	//See how you can get the data
+	fmt.Println((data_t[0].Key))
+
+	//TODO:: Iterate throught array and add items like below except all at once as shown
+
+	/*fmt.Printf("Transferring Data Key: %d Value: %s", data_t.Key, data_t.Value)
 	for data_t.Key != -1 {
 
 		//Insert Key into my table
@@ -346,7 +361,7 @@ func (self *Ring) JoinGroup(address string) (err error) {
 
 		//Start Gossiping
 		if self.isGossiping == false {
-			go self.Gossip()
+			//go self.Gossip()
 		}
 
 		//Check if more data_t is available
@@ -355,7 +370,7 @@ func (self *Ring) JoinGroup(address string) (err error) {
 			fmt.Println("Error retrieving data")
 			return
 		}
-	}
+	}*/
 
 	//Make hashed key my id
 	finalMember := data.NewGroupMember(hashedKey, hostPort, 0, Stable)
@@ -408,7 +423,7 @@ func (self *Ring) LeaveGroup() {
 		}
 		NextLessThen = self.KeyValTable.FindLE(data.DataStore{sendData.Key, ""})
 	}
-	self.updateMember(data.NewGroupMember(-1, hostPort, 0, Leaving))
+	self.updateMember(data.NewGroupMember(-1, hostPort, 0, DataSentAndLeft))
 
 	//One Last Gossip to make sure someone knows I have left
 	self.doUserTableGossip()
@@ -447,6 +462,26 @@ func (self *Ring) doUserTableGossip() {
 	if tableLength < 1 {
 		return
 	}
+	/*address := net.JoinHostPort(self.Address, self.Port)
+	key := self.Usertable[address].Id
+
+	//Find predecessor
+	item := self.UserKeyTable.FindLE(data.LocationStore{key - 1, ""})
+
+	//If we could not find it we must be at the lower limit of ring
+	if item == (self.UserKeyTable.NegativeLimit()) {
+
+		//Ensure that predecessor is not the lower limit itself
+		if (item.Next() != self.UserKeyTable.FindLE(data.LocationStore{key - 1, ""})) {
+			//Then make the max value in ring predecessor
+			item = self.UserKeyTable.Max()
+		}
+	}
+	predecessorKey := item.Item().(data.LocationStore).Key*/
+
+	//Temporary
+	predecessorKey := -20
+
 	receiver := self.getRandomMember()
 	//fmt.Println(receiver.Address)
 	for _, subject := range self.Usertable {
@@ -456,6 +491,11 @@ func (self *Ring) doUserTableGossip() {
 		}
 		if subject.Heartbeat > heartbeatThreshold && subject.Id != -1 {
 			log.Println("MACHINE DEAD!", subject.Id, subject.Heartbeat)
+			if subject.Id == predecessorKey {
+
+				//TODO:: Update replicase -- Dont need to touch I have it figured out
+				fmt.Println("Now you need to update your replicas")
+			}
 			//Deletes the member in the userkeytable
 			self.updateMember(data.NewGroupMember(-1, subject.Address, subject.Heartbeat, Leaving))
 		}

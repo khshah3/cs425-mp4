@@ -13,182 +13,162 @@ package rbtree
 // Public definitions
 //
 
-// Item is the object stored in each tree node.
+// Item is the object stored in each tree Node.
 type Item interface{}
 
-// CompareFunc returns 0 if a==b, <0 if a<b, >0 if a>b.
-type CompareFunc func(a, b Item) int
-
-type Tree struct {
-	// Root of the tree
-	root *node
-
-	// The minimum and maximum nodes under the root.
-	minNode, maxNode *node
-
-	// Number of nodes under root, including the root
-	count   int
-	compare CompareFunc
-}
-
-// Create a new empty tree.
-func NewTree(compare CompareFunc) *Tree {
-	return &Tree{compare: compare}
-}
-
 // Return the number of elements in the tree.
-func (root *Tree) Len() int {
-	return root.count
+func (Root *Tree) Len() int {
+	return Root.Count
 }
 
 // A convenience function for finding an element equal to key. Return
 // nil if not found.
-func (root *Tree) Get(key Item) Item {
-	n, exact := root.findGE(key)
+func (Root *Tree) Get(key Item) Item {
+	n, exact := Root.findGE(key)
 	if exact {
-		return n.item
+		return n.Item
 	}
 	return nil
 }
 
-// Create an iterator that points to the minimum item in the tree
+// Create an iterator that points to the minimum Item in the tree
 // If the tree is empty, return Limit()
-func (root *Tree) Min() Iterator {
-	return Iterator{root, root.minNode}
+func (Root *Tree) Min() Iterator {
+	return Iterator{Root, Root.MinNode}
 }
 
-// Create an iterator that points at the maximum item in the tree
+// Create an iterator that points at the maximum Item in the tree
 //
 // If the tree is empty, return NegativeLimit()
-func (root *Tree) Max() Iterator {
-	if root.maxNode == nil {
+func (Root *Tree) Max() Iterator {
+	if Root.MaxNode == nil {
 		// TODO: there are a few checks of this form.
-		// Perhaps set maxNode=negativeLimit when the tree is empty
-		return Iterator{root, negativeLimitNode}
+		// Perhaps set MaxNode=negativeLimit when the tree is empty
+		return Iterator{Root, negativeLimitNode}
 	}
-	return Iterator{root, root.maxNode}
+	return Iterator{Root, Root.MaxNode}
 }
 
-// Create an iterator that points beyond the maximum item in the tree
-func (root *Tree) Limit() Iterator {
-	return Iterator{root, nil}
+// Create an iterator that points beyond the maximum Item in the tree
+func (Root *Tree) Limit() Iterator {
+	return Iterator{Root, nil}
 }
 
-// Create an iterator that points before the minimum item in the tree
-func (root *Tree) NegativeLimit() Iterator {
-	return Iterator{root, negativeLimitNode}
+// Create an iterator that points before the minimum Item in the tree
+func (Root *Tree) NegativeLimit() Iterator {
+	return Iterator{Root, negativeLimitNode}
 }
 
 // Find the smallest element N such that N >= key, and return the
 // iterator pointing to the element. If no such element is found,
-// return root.Limit().
-func (root *Tree) FindGE(key Item) Iterator {
-	n, _ := root.findGE(key)
-	return Iterator{root, n}
+// return Root.Limit().
+func (Root *Tree) FindGE(key Item) Iterator {
+	n, _ := Root.findGE(key)
+	return Iterator{Root, n}
 }
 
 // Find the largest element N such that N <= key, and return the
 // iterator pointing to the element. If no such element is found,
 // return iter.NegativeLimit().
-func (root *Tree) FindLE(key Item) Iterator {
-	n, exact := root.findGE(key)
+func (Root *Tree) FindLE(key Item) Iterator {
+	n, exact := Root.findGE(key)
 	if exact {
-		return Iterator{root, n}
+		return Iterator{Root, n}
 	}
 	if n != nil {
-		return Iterator{root, n.doPrev()}
+		return Iterator{Root, n.doPrev()}
 	}
-	if root.maxNode == nil {
-		return Iterator{root, negativeLimitNode}
+	if Root.MaxNode == nil {
+		return Iterator{Root, negativeLimitNode}
 	}
-	return Iterator{root, root.maxNode}
+	return Iterator{Root, Root.MaxNode}
 }
 
-// Insert an item. If the item is already in the tree, do nothing and
+// Insert an Item. If the Item is already in the tree, do nothing and
 // return false. Else return true.
-func (root *Tree) Insert(item Item) bool {
+func (Root *Tree) Insert(Item Item) bool {
 	// TODO: delay creating n until it is found to be inserted
-	n := root.doInsert(item)
+	n := Root.doInsert(Item)
 	if n == nil {
 		return false
 	}
 
-	n.color = red
+	n.Color = red
 
 	for true {
-		// Case 1: N is at the root
-		if n.parent == nil {
-			n.color = black
+		// Case 1: N is at the Root
+		if n.Parent == nil {
+			n.Color = black
 			break
 		}
 
-		// Case 2: The parent is black, so the tree already
+		// Case 2: The Parent is black, so the tree already
 		// satisfies the RB properties
-		if n.parent.color == black {
+		if n.Parent.Color == black {
 			break
 		}
 
-		// Case 3: parent and uncle are both red.
-		// Then paint both black and make grandparent red.
-		grandparent := n.parent.parent
-		var uncle *node
-		if n.parent.isLeftChild() {
-			uncle = grandparent.right
+		// Case 3: Parent and uncle are both red.
+		// Then paint both black and make grandParent red.
+		grandParent := n.Parent.Parent
+		var uncle *Node
+		if n.Parent.isLeftChild() {
+			uncle = grandParent.Right
 		} else {
-			uncle = grandparent.left
+			uncle = grandParent.Left
 		}
-		if uncle != nil && uncle.color == red {
-			n.parent.color = black
-			uncle.color = black
-			grandparent.color = red
-			n = grandparent
+		if uncle != nil && uncle.Color == red {
+			n.Parent.Color = black
+			uncle.Color = black
+			grandParent.Color = red
+			n = grandParent
 			continue
 		}
 
-		// Case 4: parent is red, uncle is black (1)
-		if n.isRightChild() && n.parent.isLeftChild() {
-			root.rotateLeft(n.parent)
-			n = n.left
+		// Case 4: Parent is red, uncle is black (1)
+		if n.isRightChild() && n.Parent.isLeftChild() {
+			Root.rotateLeft(n.Parent)
+			n = n.Left
 			continue
 		}
-		if n.isLeftChild() && n.parent.isRightChild() {
-			root.rotateRight(n.parent)
-			n = n.right
+		if n.isLeftChild() && n.Parent.isRightChild() {
+			Root.rotateRight(n.Parent)
+			n = n.Right
 			continue
 		}
 
-		// Case 5: parent is read, uncle is black (2)
-		n.parent.color = black
-		grandparent.color = red
+		// Case 5: Parent is read, uncle is black (2)
+		n.Parent.Color = black
+		grandParent.Color = red
 		if n.isLeftChild() {
-			root.rotateRight(grandparent)
+			Root.rotateRight(grandParent)
 		} else {
-			root.rotateLeft(grandparent)
+			Root.rotateLeft(grandParent)
 		}
 		break
 	}
 	return true
 }
 
-// Delete an item with the given key. Return true iff the item was
+// Delete an Item with the given key. Return true iff the Item was
 // found.
-func (root *Tree) DeleteWithKey(key Item) bool {
-	n, exact := root.findGE(key)
+func (Root *Tree) DeleteWithKey(key Item) bool {
+	n, exact := Root.findGE(key)
 
-	iter := Iterator{root, n}
-	if iter.node != nil && exact {
-		root.DeleteWithIterator(iter)
+	iter := Iterator{Root, n}
+	if iter.Node != nil && exact {
+		Root.DeleteWithIterator(iter)
 		return true
 	}
 	return false
 }
 
-// Delete the current item.
+// Delete the current Item.
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
-func (root *Tree) DeleteWithIterator(iter Iterator) {
+func (Root *Tree) DeleteWithIterator(iter Iterator) {
 	doAssert(!iter.Limit() && !iter.NegativeLimit())
-	root.doDelete(iter.node)
+	Root.doDelete(iter.Node)
 }
 
 // Iterator allows scanning tree elements in sort order.
@@ -198,39 +178,39 @@ func (root *Tree) DeleteWithIterator(iter Iterator) {
 // iterator becomes invalid. For other operation types, the iterator
 // remains valid.
 type Iterator struct {
-	root *Tree
-	node *node
+	Root *Tree
+	Node *Node
 }
 
 func (iter Iterator) Equal(iter2 Iterator) bool {
-	return iter.node == iter2.node
+	return iter.Node == iter2.Node
 }
 
 // Check if the iterator points beyond the max element in the tree
 func (iter Iterator) Limit() bool {
-	return iter.node == nil
+	return iter.Node == nil
 }
 
 // Check if the iterator points to the minimum element in the tree
 func (iter Iterator) Min() bool {
-	return iter.node == iter.root.minNode
+	return iter.Node == iter.Root.MinNode
 }
 
 // Check if the iterator points to the maximum element in the tree
 func (iter Iterator) Max() bool {
-	return iter.node == iter.root.maxNode
+	return iter.Node == iter.Root.MaxNode
 }
 
 // Check if the iterator points before the minumum element in the tree
 func (iter Iterator) NegativeLimit() bool {
-	return iter.node == negativeLimitNode
+	return iter.Node == negativeLimitNode
 }
 
 // Return the current element.
 //
 // REQUIRES: !iter.Limit() && !iter.NegativeLimit()
 func (iter Iterator) Item() interface{} {
-	return iter.node.item
+	return iter.Node.Item
 }
 
 // Create a new iterator that points to the successor of the current element.
@@ -239,24 +219,24 @@ func (iter Iterator) Item() interface{} {
 func (iter Iterator) Next() Iterator {
 	doAssert(!iter.Limit())
 	if iter.NegativeLimit() {
-		return Iterator{iter.root, iter.root.minNode}
+		return Iterator{iter.Root, iter.Root.MinNode}
 	}
-	return Iterator{iter.root, iter.node.doNext()}
+	return Iterator{iter.Root, iter.Node.doNext()}
 }
 
 // Create a new iterator that points to the predecessor of the current
-// node.
+// Node.
 //
 // REQUIRES: !iter.NegativeLimit()
 func (iter Iterator) Prev() Iterator {
 	doAssert(!iter.NegativeLimit())
 	if !iter.Limit() {
-		return Iterator{iter.root, iter.node.doPrev()}
+		return Iterator{iter.Root, iter.Node.doPrev()}
 	}
-	if iter.root.maxNode == nil {
-		return Iterator{iter.root, negativeLimitNode}
+	if iter.Root.MaxNode == nil {
+		return Iterator{iter.Root, negativeLimitNode}
 	}
-	return Iterator{iter.root, iter.root.maxNode}
+	return Iterator{iter.Root, iter.Root.MaxNode}
 }
 
 func doAssert(b bool) {
@@ -268,53 +248,53 @@ func doAssert(b bool) {
 const red = iota
 const black = 1 + iota
 
-type node struct {
-	item                Item
-	parent, left, right *node
-	color               int // black or red
+type Node struct {
+	Item                Item
+	Parent, Left, Right *Node
+	Color               int // black or red
 }
 
-var negativeLimitNode *node
+var negativeLimitNode *Node
 
 //
-// Internal node attribute accessors
+// Internal Node attribute accessors
 //
-func getColor(n *node) int {
+func getColor(n *Node) int {
 	if n == nil {
 		return black
 	}
-	return n.color
+	return n.Color
 }
 
-func (n *node) isLeftChild() bool {
-	return n == n.parent.left
+func (n *Node) isLeftChild() bool {
+	return n == n.Parent.Left
 }
 
-func (n *node) isRightChild() bool {
-	return n == n.parent.right
+func (n *Node) isRightChild() bool {
+	return n == n.Parent.Right
 }
 
-func (n *node) sibling() *node {
-	doAssert(n.parent != nil)
+func (n *Node) sibling() *Node {
+	doAssert(n.Parent != nil)
 	if n.isLeftChild() {
-		return n.parent.right
+		return n.Parent.Right
 	}
-	return n.parent.left
+	return n.Parent.Left
 }
 
-// Return the minimum node that's larger than N. Return nil if no such
-// node is found.
-func (n *node) doNext() *node {
-	if n.right != nil {
-		m := n.right
-		for m.left != nil {
-			m = m.left
+// Return the minimum Node that's larger than N. Return nil if no such
+// Node is found.
+func (n *Node) doNext() *Node {
+	if n.Right != nil {
+		m := n.Right
+		for m.Left != nil {
+			m = m.Left
 		}
 		return m
 	}
 
 	for n != nil {
-		p := n.parent
+		p := n.Parent
 		if p == nil {
 			return nil
 		}
@@ -326,15 +306,15 @@ func (n *node) doNext() *node {
 	return nil
 }
 
-// Return the maximum node that's smaller than N. Return nil if no
-// such node is found.
-func (n *node) doPrev() *node {
-	if n.left != nil {
+// Return the maximum Node that's smaller than N. Return nil if no
+// such Node is found.
+func (n *Node) doPrev() *Node {
+	if n.Left != nil {
 		return maxPredecessor(n)
 	}
 
 	for n != nil {
-		p := n.parent
+		p := n.Parent
 		if p == nil {
 			break
 		}
@@ -347,11 +327,11 @@ func (n *node) doPrev() *node {
 }
 
 // Return the predecessor of "n".
-func maxPredecessor(n *node) *node {
-	doAssert(n.left != nil)
-	m := n.left
-	for m.right != nil {
-		m = m.right
+func maxPredecessor(n *Node) *Node {
+	doAssert(n.Left != nil)
+	m := n.Left
+	for m.Right != nil {
+		m = m.Right
 	}
 	return m
 }
@@ -364,110 +344,110 @@ func maxPredecessor(n *node) *node {
 // Private methods
 //
 
-func (root *Tree) recomputeMinNode() {
-	root.minNode = root.root
-	if root.minNode != nil {
-		for root.minNode.left != nil {
-			root.minNode = root.minNode.left
+func (Root *Tree) recomputeMinNode() {
+	Root.MinNode = Root.Root
+	if Root.MinNode != nil {
+		for Root.MinNode.Left != nil {
+			Root.MinNode = Root.MinNode.Left
 		}
 	}
 }
 
-func (root *Tree) recomputeMaxNode() {
-	root.maxNode = root.root
-	if root.maxNode != nil {
-		for root.maxNode.right != nil {
-			root.maxNode = root.maxNode.right
+func (Root *Tree) recomputeMaxNode() {
+	Root.MaxNode = Root.Root
+	if Root.MaxNode != nil {
+		for Root.MaxNode.Right != nil {
+			Root.MaxNode = Root.MaxNode.Right
 		}
 	}
 }
 
-func (root *Tree) maybeSetMinNode(n *node) {
-	if root.minNode == nil {
-		root.minNode = n
-		root.maxNode = n
-	} else if root.compare(n.item, root.minNode.item) < 0 {
-		root.minNode = n
+func (Root *Tree) maybeSetMinNode(n *Node) {
+	if Root.MinNode == nil {
+		Root.MinNode = n
+		Root.MaxNode = n
+	} else if Root.compare(n.Item, Root.MinNode.Item) < 0 {
+		Root.MinNode = n
 	}
 }
 
-func (root *Tree) maybeSetMaxNode(n *node) {
-	if root.maxNode == nil {
-		root.minNode = n
-		root.maxNode = n
-	} else if root.compare(n.item, root.maxNode.item) > 0 {
-		root.maxNode = n
+func (Root *Tree) maybeSetMaxNode(n *Node) {
+	if Root.MaxNode == nil {
+		Root.MinNode = n
+		Root.MaxNode = n
+	} else if Root.compare(n.Item, Root.MaxNode.Item) > 0 {
+		Root.MaxNode = n
 	}
 }
 
-// Try inserting "item" into the tree. Return nil if the item is
-// already in the tree. Otherwise return a new (leaf) node.
-func (root *Tree) doInsert(item Item) *node {
-	if root.root == nil {
-		n := &node{item: item}
-		root.root = n
-		root.minNode = n
-		root.maxNode = n
-		root.count++
+// Try inserting "Item" into the tree. Return nil if the Item is
+// already in the tree. Otherwise return a new (leaf) Node.
+func (Root *Tree) doInsert(Item Item) *Node {
+	if Root.Root == nil {
+		n := &Node{Item: Item}
+		Root.Root = n
+		Root.MinNode = n
+		Root.MaxNode = n
+		Root.Count++
 		return n
 	}
-	parent := root.root
+	Parent := Root.Root
 	for true {
-		comp := root.compare(item, parent.item)
+		comp := Root.compare(Item, Parent.Item)
 		if comp == 0 {
 			return nil
 		} else if comp < 0 {
-			if parent.left == nil {
-				n := &node{item: item, parent: parent}
-				parent.left = n
-				root.count++
-				root.maybeSetMinNode(n)
+			if Parent.Left == nil {
+				n := &Node{Item: Item, Parent: Parent}
+				Parent.Left = n
+				Root.Count++
+				Root.maybeSetMinNode(n)
 				return n
 			} else {
-				parent = parent.left
+				Parent = Parent.Left
 			}
 		} else {
-			if parent.right == nil {
-				n := &node{item: item, parent: parent}
-				parent.right = n
-				root.count++
-				root.maybeSetMaxNode(n)
+			if Parent.Right == nil {
+				n := &Node{Item: Item, Parent: Parent}
+				Parent.Right = n
+				Root.Count++
+				Root.maybeSetMaxNode(n)
 				return n
 			} else {
-				parent = parent.right
+				Parent = Parent.Right
 			}
 		}
 	}
 	panic("should not reach here")
 }
 
-// Find a node whose item >= key. The 2nd return value is true iff the
-// node.item==key. Returns (nil, false) if all nodes in the tree are <
+// Find a Node whose Item >= key. The 2nd return value is true iff the
+// Node.Item==key. Returns (nil, false) if all Nodes in the tree are <
 // key.
-func (root *Tree) findGE(key Item) (*node, bool) {
-	n := root.root
+func (Root *Tree) findGE(key Item) (*Node, bool) {
+	n := Root.Root
 	for true {
 		if n == nil {
 			return nil, false
 		}
-		comp := root.compare(key, n.item)
+		comp := Root.compare(key, n.Item)
 		if comp == 0 {
 			return n, true
 		} else if comp < 0 {
-			if n.left != nil {
-				n = n.left
+			if n.Left != nil {
+				n = n.Left
 			} else {
 				return n, false
 			}
 		} else {
-			if n.right != nil {
-				n = n.right
+			if n.Right != nil {
+				n = n.Right
 			} else {
 				succ := n.doNext()
 				if succ == nil {
 					return nil, false
 				} else {
-					comp = root.compare(key, succ.item)
+					comp = Root.compare(key, succ.Item)
 					return succ, (comp == 0)
 				}
 			}
@@ -477,35 +457,35 @@ func (root *Tree) findGE(key Item) (*node, bool) {
 }
 
 // Delete N from the tree.
-func (root *Tree) doDelete(n *node) {
-	if n.left != nil && n.right != nil {
+func (Root *Tree) doDelete(n *Node) {
+	if n.Left != nil && n.Right != nil {
 		pred := maxPredecessor(n)
-		root.swapNodes(n, pred)
+		Root.swapNodes(n, pred)
 	}
 
-	doAssert(n.left == nil || n.right == nil)
-	child := n.right
+	doAssert(n.Left == nil || n.Right == nil)
+	child := n.Right
 	if child == nil {
-		child = n.left
+		child = n.Left
 	}
-	if n.color == black {
-		n.color = getColor(child)
-		root.deleteCase1(n)
+	if n.Color == black {
+		n.Color = getColor(child)
+		Root.deleteCase1(n)
 	}
-	root.replaceNode(n, child)
-	if n.parent == nil && child != nil {
-		child.color = black
+	Root.replaceNode(n, child)
+	if n.Parent == nil && child != nil {
+		child.Color = black
 	}
-	root.count--
-	if root.count == 0 {
-		root.minNode = nil
-		root.maxNode = nil
+	Root.Count--
+	if Root.Count == 0 {
+		Root.MinNode = nil
+		Root.MaxNode = nil
 	} else {
-		if root.minNode == n {
-			root.recomputeMinNode()
+		if Root.MinNode == n {
+			Root.recomputeMinNode()
 		}
-		if root.maxNode == n {
-			root.recomputeMaxNode()
+		if Root.MaxNode == n {
+			Root.recomputeMaxNode()
 		}
 	}
 }
@@ -513,96 +493,96 @@ func (root *Tree) doDelete(n *node) {
 // Move n to the pred's place, and vice versa
 //
 // TODO: this code is overly convoluted
-func (root *Tree) swapNodes(n, pred *node) {
+func (Root *Tree) swapNodes(n, pred *Node) {
 	doAssert(pred != n)
 	isLeft := pred.isLeftChild()
 	tmp := *pred
-	root.replaceNode(n, pred)
-	pred.color = n.color
+	Root.replaceNode(n, pred)
+	pred.Color = n.Color
 
-	if tmp.parent == n {
+	if tmp.Parent == n {
 		// swap the positions of n and pred
 		if isLeft {
-			pred.left = n
-			pred.right = n.right
-			if pred.right != nil {
-				pred.right.parent = pred
+			pred.Left = n
+			pred.Right = n.Right
+			if pred.Right != nil {
+				pred.Right.Parent = pred
 			}
 		} else {
-			pred.left = n.left
-			if pred.left != nil {
-				pred.left.parent = pred
+			pred.Left = n.Left
+			if pred.Left != nil {
+				pred.Left.Parent = pred
 			}
-			pred.right = n
+			pred.Right = n
 		}
-		n.item = tmp.item
-		n.parent = pred
+		n.Item = tmp.Item
+		n.Parent = pred
 
-		n.left = tmp.left
-		if n.left != nil {
-			n.left.parent = n
+		n.Left = tmp.Left
+		if n.Left != nil {
+			n.Left.Parent = n
 		}
-		n.right = tmp.right
-		if n.right != nil {
-			n.right.parent = n
+		n.Right = tmp.Right
+		if n.Right != nil {
+			n.Right.Parent = n
 		}
 	} else {
-		pred.left = n.left
-		if pred.left != nil {
-			pred.left.parent = pred
+		pred.Left = n.Left
+		if pred.Left != nil {
+			pred.Left.Parent = pred
 		}
-		pred.right = n.right
-		if pred.right != nil {
-			pred.right.parent = pred
+		pred.Right = n.Right
+		if pred.Right != nil {
+			pred.Right.Parent = pred
 		}
 		if isLeft {
-			tmp.parent.left = n
+			tmp.Parent.Left = n
 		} else {
-			tmp.parent.right = n
+			tmp.Parent.Right = n
 		}
-		n.item = tmp.item
-		n.parent = tmp.parent
-		n.left = tmp.left
-		if n.left != nil {
-			n.left.parent = n
+		n.Item = tmp.Item
+		n.Parent = tmp.Parent
+		n.Left = tmp.Left
+		if n.Left != nil {
+			n.Left.Parent = n
 		}
-		n.right = tmp.right
-		if n.right != nil {
-			n.right.parent = n
+		n.Right = tmp.Right
+		if n.Right != nil {
+			n.Right.Parent = n
 		}
 	}
-	n.color = tmp.color
+	n.Color = tmp.Color
 }
 
-func (root *Tree) deleteCase1(n *node) {
+func (Root *Tree) deleteCase1(n *Node) {
 	for true {
-		if n.parent != nil {
+		if n.Parent != nil {
 			if getColor(n.sibling()) == red {
-				n.parent.color = red
-				n.sibling().color = black
-				if n == n.parent.left {
-					root.rotateLeft(n.parent)
+				n.Parent.Color = red
+				n.sibling().Color = black
+				if n == n.Parent.Left {
+					Root.rotateLeft(n.Parent)
 				} else {
-					root.rotateRight(n.parent)
+					Root.rotateRight(n.Parent)
 				}
 			}
-			if getColor(n.parent) == black &&
+			if getColor(n.Parent) == black &&
 				getColor(n.sibling()) == black &&
-				getColor(n.sibling().left) == black &&
-				getColor(n.sibling().right) == black {
-				n.sibling().color = red
-				n = n.parent
+				getColor(n.sibling().Left) == black &&
+				getColor(n.sibling().Right) == black {
+				n.sibling().Color = red
+				n = n.Parent
 				continue
 			} else {
 				// case 4
-				if getColor(n.parent) == red &&
+				if getColor(n.Parent) == red &&
 					getColor(n.sibling()) == black &&
-					getColor(n.sibling().left) == black &&
-					getColor(n.sibling().right) == black {
-					n.sibling().color = red
-					n.parent.color = black
+					getColor(n.sibling().Left) == black &&
+					getColor(n.sibling().Right) == black {
+					n.sibling().Color = red
+					n.Parent.Color = black
 				} else {
-					root.deleteCase5(n)
+					Root.deleteCase5(n)
 				}
 			}
 		}
@@ -610,49 +590,49 @@ func (root *Tree) deleteCase1(n *node) {
 	}
 }
 
-func (root *Tree) deleteCase5(n *node) {
-	if n == n.parent.left &&
+func (Root *Tree) deleteCase5(n *Node) {
+	if n == n.Parent.Left &&
 		getColor(n.sibling()) == black &&
-		getColor(n.sibling().left) == red &&
-		getColor(n.sibling().right) == black {
-		n.sibling().color = red
-		n.sibling().left.color = black
-		root.rotateRight(n.sibling())
-	} else if n == n.parent.right &&
+		getColor(n.sibling().Left) == red &&
+		getColor(n.sibling().Right) == black {
+		n.sibling().Color = red
+		n.sibling().Left.Color = black
+		Root.rotateRight(n.sibling())
+	} else if n == n.Parent.Right &&
 		getColor(n.sibling()) == black &&
-		getColor(n.sibling().right) == red &&
-		getColor(n.sibling().left) == black {
-		n.sibling().color = red
-		n.sibling().right.color = black
-		root.rotateLeft(n.sibling())
+		getColor(n.sibling().Right) == red &&
+		getColor(n.sibling().Left) == black {
+		n.sibling().Color = red
+		n.sibling().Right.Color = black
+		Root.rotateLeft(n.sibling())
 	}
 
 	// case 6
-	n.sibling().color = getColor(n.parent)
-	n.parent.color = black
-	if n == n.parent.left {
-		doAssert(getColor(n.sibling().right) == red)
-		n.sibling().right.color = black
-		root.rotateLeft(n.parent)
+	n.sibling().Color = getColor(n.Parent)
+	n.Parent.Color = black
+	if n == n.Parent.Left {
+		doAssert(getColor(n.sibling().Right) == red)
+		n.sibling().Right.Color = black
+		Root.rotateLeft(n.Parent)
 	} else {
-		doAssert(getColor(n.sibling().left) == red)
-		n.sibling().left.color = black
-		root.rotateRight(n.parent)
+		doAssert(getColor(n.sibling().Left) == red)
+		n.sibling().Left.Color = black
+		Root.rotateRight(n.Parent)
 	}
 }
 
-func (root *Tree) replaceNode(oldn, newn *node) {
-	if oldn.parent == nil {
-		root.root = newn
+func (Root *Tree) replaceNode(oldn, newn *Node) {
+	if oldn.Parent == nil {
+		Root.Root = newn
 	} else {
-		if oldn == oldn.parent.left {
-			oldn.parent.left = newn
+		if oldn == oldn.Parent.Left {
+			oldn.Parent.Left = newn
 		} else {
-			oldn.parent.right = newn
+			oldn.Parent.Right = newn
 		}
 	}
 	if newn != nil {
-		newn.parent = oldn.parent
+		newn.Parent = oldn.Parent
 	}
 }
 
@@ -661,24 +641,24 @@ func (root *Tree) replaceNode(oldn, newn *node) {
   A   Y	    =>     X   C
      B C 	  A B
 */
-func (root *Tree) rotateLeft(x *node) {
-	y := x.right
-	x.right = y.left
-	if y.left != nil {
-		y.left.parent = x
+func (Root *Tree) rotateLeft(x *Node) {
+	y := x.Right
+	x.Right = y.Left
+	if y.Left != nil {
+		y.Left.Parent = x
 	}
-	y.parent = x.parent
-	if x.parent == nil {
-		root.root = y
+	y.Parent = x.Parent
+	if x.Parent == nil {
+		Root.Root = y
 	} else {
 		if x.isLeftChild() {
-			x.parent.left = y
+			x.Parent.Left = y
 		} else {
-			x.parent.right = y
+			x.Parent.Right = y
 		}
 	}
-	y.left = x
-	x.parent = y
+	y.Left = x
+	x.Parent = y
 }
 
 /*
@@ -686,29 +666,29 @@ func (root *Tree) rotateLeft(x *node) {
    X   C  =>   A   Y
   A B             B C
 */
-func (root *Tree) rotateRight(y *node) {
-	x := y.left
+func (Root *Tree) rotateRight(y *Node) {
+	x := y.Left
 
 	// Move "B"
-	y.left = x.right
-	if x.right != nil {
-		x.right.parent = y
+	y.Left = x.Right
+	if x.Right != nil {
+		x.Right.Parent = y
 	}
 
-	x.parent = y.parent
-	if y.parent == nil {
-		root.root = x
+	x.Parent = y.Parent
+	if y.Parent == nil {
+		Root.Root = x
 	} else {
 		if y.isLeftChild() {
-			y.parent.left = x
+			y.Parent.Left = x
 		} else {
-			y.parent.right = x
+			y.Parent.Right = x
 		}
 	}
-	x.right = y
-	y.parent = x
+	x.Right = y
+	y.Parent = x
 }
 
 func init() {
-	negativeLimitNode = &node{}
+	negativeLimitNode = &Node{}
 }

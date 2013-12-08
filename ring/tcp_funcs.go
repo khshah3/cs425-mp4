@@ -141,28 +141,42 @@ func (self *Ring) UpdateData(sentData *data.DataStore, response *RpcResult) erro
 	return nil
 }
 
-//Get data for when joining the group
-func (self *Ring) GetEntryData(location *data.LocationStore, responseData *data.DataStore) error {
+//Get data for when joining the group. We need to use the array as its impossible to track the location of next member
+//without deleting the current member. Which we dont want as we will store it as a replica
+func (self *Ring) GetEntryData(location *data.LocationStore, responseData *[]*data.DataStore) error {
 
-	key := (*location).Key
-	mdata := &data.DataStore{
+	//key := (*location).Key
+	/*mdata := &data.DataStore{
 		Key:   -1,
 		Value: "",
-	}
-
-	*responseData = *mdata
+	}*/
+	data_t := make([]*data.DataStore, 0)
 
 	False := self.KeyValTable.Limit()
 	min := self.KeyValTable.Min()
 
-	if min != False {
+	for min != False {
+		response := min.Item().(data.DataStore)
+		data_t = append(data_t, &response)
+		member := data.NewGroupMember((response).Key, (*location).Value, 0, Joining)
+		self.updateMember(member)
+		fmt.Println(member)
+		min = min.Next()
+
+	}
+	fmt.Println(data_t)
+	*responseData = data_t
+
+	/*if min != False {
 		if min.Item().(data.DataStore).Key <= key {
 			*responseData = min.Item().(data.DataStore)
 			member := data.NewGroupMember((*responseData).Key, (*location).Value, 0, Joining)
 			self.updateMember(member)
+
+			//We are commenting this because our successors are our replicas
 			self.KeyValTable.DeleteWithIterator(min)
 		}
-	}
+	}*/
 	return nil
 }
 
@@ -170,8 +184,11 @@ func (self *Ring) SendLeaveData(sentData *data.DataStore, response *RpcResult) e
 
 	inserted := self.KeyValTable.Insert(data.DataStore{(*sentData).Key, (*sentData).Value})
 	response.Success = Btoi(inserted)
+	myAddr := net.JoinHostPort(self.Address, self.Port)
 	if response.Success != 1 {
 		fmt.Println("Cannot store date: Should not happen unless machine gone")
+	} else {
+		response.Success = self.writeToReplicas(sentData, self.Usertable[myAddr].Id)
 	}
 	return nil
 }
