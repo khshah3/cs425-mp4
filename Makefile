@@ -3,6 +3,8 @@ all:
 	go build benchmark.go
 
 
+clean:
+	rm myks benchmark test client
 
 mwdeploy:
 	gnome-terminal -x ./myks -l="5555"
