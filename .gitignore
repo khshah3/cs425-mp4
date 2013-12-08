@@ -2,4 +2,4 @@ myks
 benchmark
 test
 client
-logs/application.log
+logs/*.log
