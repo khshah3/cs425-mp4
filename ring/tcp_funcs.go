@@ -150,6 +150,8 @@ func (self *Ring) GetEntryData(location *data.LocationStore, responseData *[]*da
 		Key:   -1,
 		Value: "",
 	}*/
+
+	fmt.Println("I cam here")
 	data_t := make([]*data.DataStore, 0)
 
 	False := self.KeyValTable.Limit()
@@ -161,6 +163,10 @@ func (self *Ring) GetEntryData(location *data.LocationStore, responseData *[]*da
 		member := data.NewGroupMember((response).Key, (*location).Value, 0, Joining)
 		self.updateMember(member)
 		fmt.Println(member)
+
+		//We are commenting this because our successors are our replicas
+		self.KeyValTable.DeleteWithIterator(min)
+
 		min = min.Next()
 
 	}

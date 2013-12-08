@@ -342,45 +342,32 @@ func (self *Ring) JoinGroup(address string) (err error) {
 	var data_t []*data.DataStore
 	err = client.Call("Ring.GetEntryData", argi, &data_t)
 
-	//See how you can get the data
-	fmt.Println((data_t[0].Key))
+	//TODO:: Iterate throught array and add items like below except all at once as shown.  Straightforward.
 
-	//TODO:: Iterate throught array and add items like below except all at once as shown
+	length := len(data_t)
 
-	/*fmt.Printf("Transferring Data Key: %d Value: %s", data_t.Key, data_t.Value)
-	for data_t.Key != -1 {
+	for i := 0; i < length; i++ {
 
 		//Insert Key into my table
-		self.KeyValTable.Insert(data.DataStore{data_t.Key, data_t.Value})
+		self.KeyValTable.Insert(*(data_t[i]))
 
-		hostPort := net.JoinHostPort(self.Address, self.Port)
-
-		//Insert value of key as my Id
-		newMember := data.NewGroupMember(data_t.Key, hostPort, 0, Joining)
+		//Insert Value of Key as my Id
+		newMember := data.NewGroupMember(data_t[i].Key, hostPort, 0, Joining)
 		self.updateMember(newMember)
 
 		//Start Gossiping
 		if self.isGossiping == false {
-			//go self.Gossip()
+			go self.Gossip()
 		}
+	}
 
-		//Check if more data_t is available
-		err = client.Call("Ring.GetEntryData", argi, &data_t)
-		if err != nil {
-			fmt.Println("Error retrieving data")
-			return
-		}
-	}*/
-
-	//Make hashed key my id
-	finalMember := data.NewGroupMember(hashedKey, hostPort, 0, Stable)
-	self.updateMember(finalMember)
-
-	fmt.Println("Am i done")
 	if self.isGossiping == false {
 		go self.Gossip()
 		fmt.Println("Am i done")
 	}
+	//Make hashed key my id
+	finalMember := data.NewGroupMember(hashedKey, hostPort, 0, Stable)
+	self.updateMember(finalMember)
 	return
 }
 
@@ -394,8 +381,21 @@ func (self *Ring) LeaveGroup() {
 	receiver := self.getRandomMember()
 	successor := self.callForSuccessor(key, receiver.Address)
 	fmt.Println(successor)
+	self.bulkDataSend("Ring.SendLeaveData", successor)
 
-	client, err := rpc.DialHTTP("tcp", successor.Address)
+	self.updateMember(data.NewGroupMember(-1, hostPort, 0, DataSentAndLeft))
+
+	//One Last Gossip to make sure someone knows I have left
+	self.doUserTableGossip()
+	fmt.Println("I am done here")
+}
+
+func (self *Ring) bulkDataSend(function string, receiver *data.GroupMember) {
+
+	hostPort := net.JoinHostPort(self.Address, self.Port)
+	key := self.Usertable[hostPort].Id
+
+	client, err := rpc.DialHTTP("tcp", receiver.Address)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
@@ -404,10 +404,11 @@ func (self *Ring) LeaveGroup() {
 	NextLessThen := self.KeyValTable.FindLE(data.DataStore{key, ""})
 	for NextLessThen != self.KeyValTable.NegativeLimit() {
 
-		sendData := NextLessThen.Item().(data.DataStore)
-		sendDataPtr := &sendData
+		sendingData := NextLessThen.Item().(data.DataStore)
+		fmt.Println(sendingData)
+		sendDataPtr := &sendingData
 		var result RpcResult
-		err = client.Call("Ring.SendLeaveData", sendDataPtr, &result)
+		err = client.Call(function, sendDataPtr, &result)
 		if err != nil {
 			fmt.Println("Error sending data", err)
 			return
@@ -416,18 +417,18 @@ func (self *Ring) LeaveGroup() {
 		if result.Success == 1 {
 			fmt.Println("Data Succesfully sent")
 			self.KeyValTable.DeleteWithIterator(NextLessThen)
-			self.updateMember(data.NewGroupMember(sendData.Key, hostPort, 0, Leaving))
+			fmt.Println(self.KeyValTable)
+			self.updateMember(data.NewGroupMember(sendingData.Key, hostPort, 0, Leaving))
+			fmt.Println("ONE")
 		} else {
+			fmt.Println("TWO")
 			fmt.Println("Error sending data", err)
 			break
 		}
-		NextLessThen = self.KeyValTable.FindLE(data.DataStore{sendData.Key, ""})
+		fmt.Println(self.KeyValTable.Len())
+		self.PrintData()
+		NextLessThen = self.KeyValTable.FindLE(data.DataStore{sendingData.Key, ""})
 	}
-	self.updateMember(data.NewGroupMember(-1, hostPort, 0, DataSentAndLeft))
-
-	//One Last Gossip to make sure someone knows I have left
-	self.doUserTableGossip()
-	fmt.Println("I am done here")
 }
 
 func (self *Ring) callForSuccessor(myKey int, address string) *data.GroupMember {
@@ -462,7 +463,7 @@ func (self *Ring) doUserTableGossip() {
 	if tableLength < 1 {
 		return
 	}
-	/*address := net.JoinHostPort(self.Address, self.Port)
+	address := net.JoinHostPort(self.Address, self.Port)
 	key := self.Usertable[address].Id
 
 	//Find predecessor
@@ -477,10 +478,7 @@ func (self *Ring) doUserTableGossip() {
 			item = self.UserKeyTable.Max()
 		}
 	}
-	predecessorKey := item.Item().(data.LocationStore).Key*/
-
-	//Temporary
-	predecessorKey := -20
+	predecessorKey := item.Item().(data.LocationStore).Key
 
 	receiver := self.getRandomMember()
 	//fmt.Println(receiver.Address)
@@ -493,8 +491,12 @@ func (self *Ring) doUserTableGossip() {
 			log.Println("MACHINE DEAD!", subject.Id, subject.Heartbeat)
 			if subject.Id == predecessorKey {
 
-				//TODO:: Update replicase -- Dont need to touch I have it figured out
+				//TODO:: Update replicase
 				fmt.Println("Now you need to update your replicas")
+				/*for {
+					self.writeToReplicas(sentData, key)
+				}*/
+
 			}
 			//Deletes the member in the userkeytable
 			self.updateMember(data.NewGroupMember(-1, subject.Address, subject.Heartbeat, Leaving))
