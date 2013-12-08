@@ -175,6 +175,7 @@ func (self *Ring) Lookup(key int) {
 
 }
 
+
 func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 
 	if updatedMember == nil {
@@ -184,48 +185,47 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 	key := updatedMember.Id
 	movement := updatedMember.Movement
 	member := self.Usertable[updatedMember.Address]
-	var lastKey int
-	lastKey = -1
+
+  lastKey := -1
 	if member != nil {
-		lastKey = self.Usertable[updatedMember.Address].Id
+		lastKey = member.Id
 	}
 
-	//Add new member
+	// Add new member if one doesn't already exist
 	if member == nil {
 		self.Usertable[updatedMember.Address] = updatedMember
 		if self.UserKeyTable.Get(data.LocationStore{key, ""}) == nil {
 			self.UserKeyTable.Insert(data.LocationStore{key, updatedMember.Address})
-
 		} else {
 			fmt.Println("ERROR: Two members with same key")
 		}
 		return
-		//Change current member key to new one
-	} else {
-
-		if member.Heartbeat > updatedMember.Heartbeat {
-			member.SetHeartBeat(0)
-		}
-		if member.Movement >= movement {
-			self.Usertable[updatedMember.Address] = updatedMember
-			if ((movement == Joining || member.Movement == Joining) && (key > lastKey)) ||
-				((movement == Leaving || member.Movement == Leaving) && (key < lastKey)) ||
-				((movement == DataSentAndLeft || member.Movement == DataSentAndLeft) && (key < lastKey)) {
-
-				fmt.Printf("Deleting member with ID %d FROM %s", lastKey, updatedMember.Address)
-				self.UserKeyTable.DeleteWithKey(data.LocationStore{lastKey, ""})
-
-				if key != -1 {
-					fmt.Printf("Inserting member with ID %d FROM %s", key, updatedMember.Address)
-					self.UserKeyTable.Insert(data.LocationStore{key, updatedMember.Address})
-				}
-			}
-		} else {
-			fmt.Println("You should not be able to join if you already exist or stay if you already started leaving")
-		}
-
 	}
-	return
+
+  // Update the existing member
+  if member.Heartbeat > updatedMember.Heartbeat {
+    member.SetHeartBeat(0)
+  }
+
+  // TODO Not sure what's going on here?
+  if member.Movement < movement {
+    fmt.Println("You should not be able to join if you already exist or stay if you already started leaving")
+    return
+  }
+
+  self.Usertable[updatedMember.Address] = updatedMember
+  if ((movement == Joining || member.Movement == Joining) && (key > lastKey)) ||
+    ((movement == Leaving || member.Movement == Leaving) && (key < lastKey)) ||
+    ((movement == DataSentAndLeft || member.Movement == DataSentAndLeft) && (key < lastKey)) {
+
+    fmt.Printf("Deleting member with ID %d FROM %s", lastKey, updatedMember.Address)
+    self.UserKeyTable.DeleteWithKey(data.LocationStore{lastKey, ""})
+
+    if key != -1 {
+      fmt.Printf("Inserting member with ID %d FROM %s", key, updatedMember.Address)
+      self.UserKeyTable.Insert(data.LocationStore{key, updatedMember.Address})
+    }
+  }
 }
 
 func (self *Ring) FirstMember(portAddress string) {

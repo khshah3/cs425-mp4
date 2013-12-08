@@ -6,7 +6,7 @@ all:
 clean:
 	rm myks benchmark test client
 
-mwdeploy:
+mw:
 	gnome-terminal -x ./myks -l="5555"
 	sleep 1
 	gnome-terminal -x ./myks -l="5556" -g="127.0.1.1:5555"
