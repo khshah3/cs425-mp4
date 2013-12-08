@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/yasushi-saito/rbtree"
+	"./rbtree"
 	"reflect"
 )
 

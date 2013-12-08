@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -15,7 +14,6 @@ import (
 )
 
 func main() {
-
 	var (
 		groupMember string
 	)
