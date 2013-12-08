@@ -145,12 +145,6 @@ func (self *Ring) UpdateData(sentData *data.DataStore, response *RpcResult) erro
 //without deleting the current member. Which we dont want as we will store it as a replica
 func (self *Ring) GetEntryData(location *data.LocationStore, responseData *[]*data.DataStore) error {
 
-	//key := (*location).Key
-	/*mdata := &data.DataStore{
-		Key:   -1,
-		Value: "",
-	}*/
-
 	fmt.Println("I cam here")
 	data_t := make([]*data.DataStore, 0)
 
@@ -165,30 +159,21 @@ func (self *Ring) GetEntryData(location *data.LocationStore, responseData *[]*da
 		fmt.Println(member)
 
 		//We are commenting this because our successors are our replicas
-		self.KeyValTable.DeleteWithIterator(min)
+		//self.KeyValTable.DeleteWithIterator(min)
 
 		min = min.Next()
 
 	}
 	fmt.Println(data_t)
 	*responseData = data_t
-
-	/*if min != False {
-		if min.Item().(data.DataStore).Key <= key {
-			*responseData = min.Item().(data.DataStore)
-			member := data.NewGroupMember((*responseData).Key, (*location).Value, 0, Joining)
-			self.updateMember(member)
-
-			//We are commenting this because our successors are our replicas
-			self.KeyValTable.DeleteWithIterator(min)
-		}
-	}*/
 	return nil
 }
 
 func (self *Ring) SendLeaveData(sentData *data.DataStore, response *RpcResult) error {
 
+	self.KeyValTable.DeleteWithKey(data.DataStore{(*sentData).Key, ""})
 	inserted := self.KeyValTable.Insert(data.DataStore{(*sentData).Key, (*sentData).Value})
+
 	response.Success = Btoi(inserted)
 	myAddr := net.JoinHostPort(self.Address, self.Port)
 	if response.Success != 1 {

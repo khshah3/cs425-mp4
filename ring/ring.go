@@ -175,7 +175,6 @@ func (self *Ring) Lookup(key int) {
 
 }
 
-
 func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 
 	if updatedMember == nil {
@@ -186,7 +185,7 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 	movement := updatedMember.Movement
 	member := self.Usertable[updatedMember.Address]
 
-  lastKey := -1
+	lastKey := -1
 	if member != nil {
 		lastKey = member.Id
 	}
@@ -202,30 +201,30 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 		return
 	}
 
-  // Update the existing member
-  if member.Heartbeat > updatedMember.Heartbeat {
-    member.SetHeartBeat(0)
-  }
+	// Update the existing member
+	if member.Heartbeat > updatedMember.Heartbeat {
+		member.SetHeartBeat(0)
+	}
 
-  // TODO Not sure what's going on here?
-  if member.Movement < movement {
-    fmt.Println("You should not be able to join if you already exist or stay if you already started leaving")
-    return
-  }
+	// TODO Not sure what's going on here?
+	if member.Movement < movement {
+		fmt.Println("You should not be able to join if you already exist or stay if you already started leaving")
+		return
+	}
 
-  self.Usertable[updatedMember.Address] = updatedMember
-  if ((movement == Joining || member.Movement == Joining) && (key > lastKey)) ||
-    ((movement == Leaving || member.Movement == Leaving) && (key < lastKey)) ||
-    ((movement == DataSentAndLeft || member.Movement == DataSentAndLeft) && (key < lastKey)) {
+	self.Usertable[updatedMember.Address] = updatedMember
+	if ((movement == Joining || member.Movement == Joining) && (key > lastKey)) ||
+		((movement == Leaving || member.Movement == Leaving) && (key < lastKey)) ||
+		((movement == DataSentAndLeft || member.Movement == DataSentAndLeft) && (key < lastKey)) {
 
-    fmt.Printf("Deleting member with ID %d FROM %s", lastKey, updatedMember.Address)
-    self.UserKeyTable.DeleteWithKey(data.LocationStore{lastKey, ""})
+		fmt.Printf("Deleting member with ID %d FROM %s", lastKey, updatedMember.Address)
+		self.UserKeyTable.DeleteWithKey(data.LocationStore{lastKey, ""})
 
-    if key != -1 {
-      fmt.Printf("Inserting member with ID %d FROM %s", key, updatedMember.Address)
-      self.UserKeyTable.Insert(data.LocationStore{key, updatedMember.Address})
-    }
-  }
+		if key != -1 {
+			fmt.Printf("Inserting member with ID %d FROM %s", key, updatedMember.Address)
+			self.UserKeyTable.Insert(data.LocationStore{key, updatedMember.Address})
+		}
+	}
 }
 
 func (self *Ring) FirstMember(portAddress string) {
@@ -417,16 +416,11 @@ func (self *Ring) bulkDataSend(function string, receiver *data.GroupMember) {
 		if result.Success == 1 {
 			fmt.Println("Data Succesfully sent")
 			self.KeyValTable.DeleteWithIterator(NextLessThen)
-			fmt.Println(self.KeyValTable)
 			self.updateMember(data.NewGroupMember(sendingData.Key, hostPort, 0, Leaving))
-			fmt.Println("ONE")
 		} else {
-			fmt.Println("TWO")
 			fmt.Println("Error sending data", err)
 			break
 		}
-		fmt.Println(self.KeyValTable.Len())
-		self.PrintData()
 		NextLessThen = self.KeyValTable.FindLE(data.DataStore{sendingData.Key, ""})
 	}
 }
