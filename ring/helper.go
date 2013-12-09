@@ -76,7 +76,6 @@ func (self *Ring) getSuccessor(key int) data.LocationStore {
 //Gets the predecessor
 func (self *Ring) getPredecessor(key int) data.LocationStore {
 
-	fmt.Println(key)
 	//Find predecessor
 	item := self.UserKeyTable.FindLE(data.LocationStore{key - 1, ""})
 	me := self.UserKeyTable.FindLE(data.LocationStore{key, ""})
