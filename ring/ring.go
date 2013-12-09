@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	heartbeatThreshold = 25
+	heartbeatThreshold = 50
 )
 
 type Ring struct {
@@ -272,7 +272,7 @@ func (self *Ring) Gossip() {
 	fmt.Println("Start Gossiping")
 	self.isGossiping = true
 	heartbeatInterval := 50 * time.Millisecond
-	userTableInterval := 250 * time.Millisecond
+	userTableInterval := 500 * time.Millisecond
 
 	go self.HeartBeatGossip(heartbeatInterval)
 	go self.UserTableGossip(userTableInterval)
@@ -335,12 +335,12 @@ func (self *Ring) handleGossip(senderAddr, subject string) {
 		return
 	}
 
+	fmt.Println(senderAddr)
 	sender := self.Usertable[senderAddr]
 	if sender != nil {
 		//fmt.Println("Updating")
 		self.Usertable[senderAddr].SetHeartBeat(0)
 	} else {
-		fmt.Println("Found client")
 	}
 	self.updateMember(subjectMember)
 	//fmt.Println("Updating Heartbeat to ", senderAddr, self.Usertable[senderAddr].Heartbeat)
@@ -541,6 +541,7 @@ func (self *Ring) doUserTableGossip() {
 		if subject.Address != net.JoinHostPort(self.Address, self.Port) {
 			subject.IncrementHeartBeat()
 		}
+		//fmt.Println(subject.Id, subject.Heartbeat)
 		if subject.Heartbeat > heartbeatThreshold && subject.Id != -1 {
 			log.Println("MACHINE DEAD!", subject.Id, subject.Heartbeat)
 			if subject.Id == predecessorKey {
