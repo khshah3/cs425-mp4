@@ -11,14 +11,13 @@ const (
 	replicaNumber = 1
 )
 
-//Writes the given input to data ro replicas for the current key
-func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
 
+func (self *Ring) writeToNReplicas(sentData *data.DataStore, key, N int) int {
 	var result RpcResult
 	i := 0
 	j := 0
 
-	for i != replicaNumber && j < self.UserKeyTable.Len() {
+	for i != N && j < self.UserKeyTable.Len() {
 		fmt.Println(i, j, self.UserKeyTable.Len())
 		j++
 
@@ -47,8 +46,8 @@ func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
 		}
 	}
 
-	if i != replicaNumber {
-		fmt.Println("Could not replicate to all machines")
+	if i != N {
+    fmt.Println("Could not replicate to all machines, where N =", N)
 		if i == 0 {
 			fmt.Println("Could not replicate to any machine ")
 		}
@@ -56,4 +55,16 @@ func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
 	} else {
 		return 1
 	}
+}
+
+
+//Writes to all the replicas
+func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
+  return self.writeToNReplicas(sentData, key, replicaNumber)
+}
+
+//Writes to a majority of the replicas
+func (self *Ring) writeToQuorumReplicas(sentData *data.DataStore, key int) int {
+  quorum := (replicaNumber + 1) / 2
+  return self.writeToNReplicas(sentData, key, quorum)
 }
