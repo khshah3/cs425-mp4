@@ -341,6 +341,7 @@ func (self *Ring) handleGossip(senderAddr, subject string) {
 		//fmt.Println("Updating")
 		self.Usertable[senderAddr].SetHeartBeat(0)
 	} else {
+
 	}
 	self.updateMember(subjectMember)
 	//fmt.Println("Updating Heartbeat to ", senderAddr, self.Usertable[senderAddr].Heartbeat)
