@@ -28,6 +28,19 @@ const (
 	heartbeatThreshold = 25
 )
 
+
+const (
+  One int = iota
+  Quorum
+  All
+)
+
+type ConsistentOpArgs struct {
+  Consistency int
+  Data *data.DataStore
+}
+
+
 type Ring struct {
 	Usertable    map[string]*data.GroupMember
 	UserKeyTable *rbtree.Tree
