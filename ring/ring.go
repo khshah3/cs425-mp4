@@ -28,19 +28,6 @@ const (
 	heartbeatThreshold = 25
 )
 
-
-const (
-  One int = iota
-  Quorum
-  All
-)
-
-type ConsistentOpArgs struct {
-  Consistency int
-  Data *data.DataStore
-}
-
-
 type Ring struct {
 	Usertable    map[string]*data.GroupMember
 	UserKeyTable *rbtree.Tree
@@ -118,10 +105,19 @@ type RpcResult struct {
 }
 
 /* Make an RPC call to the key's successor machine, using the given args */
-func (self *Ring) callSuccessorRPC(key int, function string, args *data.DataStore) (result RpcResult) {
+func (self *Ring) callSuccessorRPC(key int, function string, args *data.DataStore, consistency int) (result RpcResult) {
 	client := self.dialSuccessor(key)
 	defer client.Close()
-	err := client.Call(function, args, &result)
+	var err error
+	if consistency == -1 {
+		err = client.Call(function, args, &result)
+	} else {
+
+		function = function + "Consistent"
+		consistentStore := data.NewConsistentDataStore(args, consistency)
+		err = client.Call(function, consistentStore, &result)
+	}
+
 	if err != nil {
 		fmt.Println("Error sending data:", err)
 		result.Success = -2
@@ -135,14 +131,14 @@ func (self *Ring) callSuccessorRPC(key int, function string, args *data.DataStor
 }
 
 /* The actual Operations exposed over RPC */
-func (self *Ring) Insert(key int, val string) {
+func (self *Ring) Insert(key int, val string, consistency int) {
 
 	args := data.NewDataStore(key, val)
-	result := self.callSuccessorRPC(key, "Ring.SendData", args)
+	result := self.callSuccessorRPC(key, "Ring.SendData", args, consistency)
 
 	if result.Member != nil && result.Success != 1 {
 		self.updateMember(result.Member)
-		self.Insert(key, val)
+		self.Insert(key, val, consistency)
 	} else {
 		timeout := 3
 		i := 0
@@ -150,37 +146,37 @@ func (self *Ring) Insert(key int, val string) {
 		fmt.Println(result.Success)
 		for result.Success == -2 && i < timeout {
 			i++
-			result = self.callSuccessorRPC(key, "Ring.SendData", args)
+			result = self.callSuccessorRPC(key, "Ring.SendData", args, consistency)
 
 		}
 	}
 
 }
 
-func (self *Ring) Update(key int, val string) {
+func (self *Ring) Update(key int, val string, consistency int) {
 	args := data.NewDataStore(key, val)
-	result := self.callSuccessorRPC(key, "Ring.UpdateData", args)
+	result := self.callSuccessorRPC(key, "Ring.UpdateData", args, consistency)
 	if result.Success != 1 && result.Member != nil {
 		self.updateMember(result.Member)
-		self.Update(key, val)
+		self.Update(key, val, consistency)
 	}
 }
 
-func (self *Ring) Remove(key int) {
+func (self *Ring) Remove(key int, consistency int) {
 	args := data.NewDataStore(key, "")
-	result := self.callSuccessorRPC(key, "Ring.RemoveData", args)
+	result := self.callSuccessorRPC(key, "Ring.RemoveData", args, consistency)
 	if result.Success != 1 && result.Member != nil {
 		self.updateMember(result.Member)
-		self.Remove(key)
+		self.Remove(key, consistency)
 	}
 }
 
-func (self *Ring) Lookup(key int) {
+func (self *Ring) Lookup(key int, consistency int) {
 	args := data.NewDataStore(key, "")
-	result := self.callSuccessorRPC(key, "Ring.GetData", args)
+	result := self.callSuccessorRPC(key, "Ring.GetData", args, consistency)
 	if result.Success != 1 && result.Member != nil {
 		self.updateMember(result.Member)
-		self.Lookup(key)
+		self.Lookup(key, consistency)
 	} else {
 		fmt.Println(result.Data.Key, result.Data.Value)
 	}
