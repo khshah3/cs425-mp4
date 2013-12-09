@@ -444,12 +444,6 @@ func (self *Ring) bulkDataSendToReplicas() {
 
 }
 
-//Get current machines key
-func (self *Ring) getKey() int {
-
-	myAddr := net.JoinHostPort(self.Address, self.Port)
-	return self.Usertable[myAddr].Id
-}
 func (self *Ring) callForSuccessor(myKey int, address string) *data.GroupMember {
 	client, err := rpc.DialHTTP("tcp", address)
 	if err != nil {

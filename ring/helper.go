@@ -5,6 +5,7 @@ import (
 	"../rbtree"
 	"fmt"
 	"math/rand"
+	"net"
 )
 
 //Get a random member from the table
@@ -92,4 +93,11 @@ func (self *Ring) getPredecessor(key int) data.LocationStore {
 	}
 	predecessor := item.Item().(data.LocationStore)
 	return predecessor
+}
+
+//Get current machines key
+func (self *Ring) getKey() int {
+
+	myAddr := net.JoinHostPort(self.Address, self.Port)
+	return self.Usertable[myAddr].Id
 }
