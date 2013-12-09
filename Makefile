@@ -1,7 +1,11 @@
-all:
+all: server client
+
+server: myks.go benchmark.go
 	go build myks.go
 	go build benchmark.go
 
+client: define.go
+	go build define.go
 
 clean:
 	rm myks benchmark test client

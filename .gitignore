@@ -2,4 +2,5 @@ myks
 benchmark
 test
 client
+define
 logs/*.log
