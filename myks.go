@@ -22,9 +22,11 @@ func main() {
 		listenPort     string
 		groupMember    string
 		faultTolerance int
+		client         int
 	)
 
 	flag.StringVar(&listenPort, "l", "4567", "port to bind for UDP listener")
+	flag.IntVar(&client, "c", 0, "Use 1 if you are a client")
 	flag.StringVar(&groupMember, "g", "", "address of an existing group member")
 	flag.IntVar(&faultTolerance, "f", 0, "Use fault tolerance")
 	flag.Parse()
@@ -33,21 +35,32 @@ func main() {
 	log.Println("Fault Tolernace", faultTolerance)
 
 	hostPort := getHostPort(listenPort)
-
+	fmt.Println(client)
 	//logger.Log("INFO", "Start Server on Port"+listenPort)
 
 	//Add itself to the usertable - join
 	ring, err := ring.NewMember(hostPort, faultTolerance)
 
-	go ring.Gossip()
-
 	firstInGroup := groupMember == ""
 	if !firstInGroup {
-		ring.JoinGroup(groupMember)
-		logger.Log("JOIN", "Gossiping new member to the group")
+		if client == 1 {
+			fmt.Println("YEs")
+			ring.ClientMember(hostPort)
+			ring.FirstMember(groupMember)
+		} else {
+
+			ring.JoinGroup(groupMember)
+			logger.Log("JOIN", "Gossiping new member to the group")
+
+		}
 	} else {
+		if client == 1 {
+			fmt.Println("There are no servers for you")
+			return
+		}
 		ring.FirstMember(hostPort)
 	}
+	go ring.Gossip()
 
 	//UDP
 	go ring.ReceiveDatagrams(firstInGroup)

@@ -192,6 +192,10 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 	// Add new member if one doesn't already exist
 	if member == nil {
 		self.Usertable[updatedMember.Address] = updatedMember
+		//We dont want to add to the server location table
+		if key == -204 {
+			return
+		}
 		if self.UserKeyTable.Get(data.LocationStore{key, ""}) == nil {
 			self.UserKeyTable.Insert(data.LocationStore{key, updatedMember.Address})
 		} else {
@@ -203,6 +207,11 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 	// Update the existing member
 	if member.Heartbeat > updatedMember.Heartbeat {
 		member.SetHeartBeat(0)
+	}
+
+	//Client case - We dont want to do anything
+	if key == -204 {
+		return
 	}
 
 	// TODO Not sure what's going on here?
@@ -228,6 +237,14 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 
 func (self *Ring) FirstMember(portAddress string) {
 	key := data.Hasher(portAddress)
+	fmt.Println("Found")
+	fmt.Println(key)
+	newMember := data.NewGroupMember(key, portAddress, 0, Stable)
+	self.updateMember(newMember)
+}
+
+func (self *Ring) ClientMember(portAddress string) {
+	key := -204
 	fmt.Println("Found")
 	fmt.Println(key)
 	newMember := data.NewGroupMember(key, portAddress, 0, Stable)
@@ -311,11 +328,38 @@ func (self *Ring) handleGossip(senderAddr, subject string) {
 
 	sender := self.Usertable[senderAddr]
 	if sender != nil {
+		//fmt.Println("Updating")
 		self.Usertable[senderAddr].SetHeartBeat(0)
+	} else {
+		fmt.Println("Found client")
 	}
 	self.updateMember(subjectMember)
 	//fmt.Println("Updating Heartbeat to ", senderAddr, self.Usertable[senderAddr].Heartbeat)
 }
+
+/*func (self *Ring) ClientJoin(address string) {
+
+	client, err := rpc.DialHTTP("tcp", address)
+	if err != nil {
+		log.Fatal("dialing:", err)
+	}
+	hostPort := net.JoinHostPort(self.Address, self.Port)
+
+	//Client key value
+	//
+	//
+	key := -201
+
+	client, err = rpc.DialHTTP("tcp", successor.Address)
+	if err != nil {
+		log.Fatal("dialing:", err)
+	}
+	fmt.Println(successor)
+	//Get smallest key less then key and initiate data transfer
+	var data_t []*data.DataStore
+	err = client.Call("Ring.AddClient", argi, &data_t)
+
+}*/
 
 //Join the group by finding successor and getting all the required data from it
 func (self *Ring) JoinGroup(address string) (err error) {
@@ -429,17 +473,17 @@ func (self *Ring) bulkDataDeleteAndSend(function string, receiver *data.GroupMem
 func (self *Ring) bulkDataSendToReplicas() {
 
 	min := self.KeyValTable.Min()
-	max := self.KeyValTable.Max()
 	key := self.getKey()
 
 	//Tree is empty
 	if min.Equal(self.KeyValTable.Limit()) {
 		return
 	}
-	for min != max {
+	for min != self.KeyValTable.Limit() {
 		item := min.Item().(data.DataStore)
 		self.writeToReplicas(&item, key)
 		fmt.Println(min.Item().(data.DataStore))
+		min = min.Next()
 	}
 
 }
@@ -481,7 +525,7 @@ func (self *Ring) doUserTableGossip() {
 	//Get predecessor
 	predecessorKey := self.getPredecessorKey(self.getKey())
 	receiver := self.getRandomMember()
-
+	//fmt.Println(receiver.Id)
 	//fmt.Println(receiver.Address)
 	for _, subject := range self.Usertable {
 

@@ -2,23 +2,36 @@ package ring
 
 import (
 	"../data"
-	"../rbtree"
 	"fmt"
 	"math/rand"
 	"net"
 )
 
-//Get a random member from the table
+//Get a random member from the table -- Changed so that uses first table which is client + server whereas second table is only servers
 func (self *Ring) getRandomMember() *data.GroupMember {
 
-	tableLength := self.UserKeyTable.Len()
+	tableLength := len(self.Usertable)
 
 	receiverIndex := rand.Int() % tableLength
-
-	//Arbitrary
-	start := self.UserKeyTable.Min()
-
 	var receiver *data.GroupMember
+
+	i := 0
+	for _, value := range self.Usertable {
+		if receiverIndex == i {
+			if value.Id != -1 {
+				receiver = value
+				return receiver
+			} else {
+				receiverIndex = (receiverIndex + 1) % tableLength
+			}
+		}
+		i++
+	}
+	fmt.Println("Should only be here if there no live members")
+	//Arbitrary
+	/*start := self.UserKeyTable.Min()
+
+
 	var receiverAddrItem rbtree.Item
 	receiverAddrItem = nil
 
@@ -34,7 +47,7 @@ func (self *Ring) getRandomMember() *data.GroupMember {
 		receiver = self.Usertable[receiverAddress]
 	} else {
 		fmt.Println("You are doomed")
-	}
+	}*/
 	return receiver
 }
 
