@@ -13,42 +13,28 @@ func (self *Ring) getRandomMember() *data.GroupMember {
 	tableLength := len(self.Usertable)
 
 	receiverIndex := rand.Int() % tableLength
-	var receiver *data.GroupMember
 
 	i := 0
-	for _, value := range self.Usertable {
-		if receiverIndex == i {
-			if value.Id != -1 {
-				receiver = value
-				return receiver
-			} else {
-				receiverIndex = (receiverIndex + 1) % tableLength
-			}
-		}
-		i++
-	}
+  for _, value := range self.Usertable {
+    if receiverIndex == i {
+      if value.Id != -1 {
+        return value
+      } else {
+        receiverIndex = (receiverIndex + 1) % tableLength
+      }
+    }
+    i++
+  }
+
+  // Restart from beginning, looking for first live member
+  for _, value := range self.Usertable {
+    if value.Id != -1 {
+      return value
+    }
+  }
+
 	fmt.Println("Should only be here if there no live members")
-	//Arbitrary
-	/*start := self.UserKeyTable.Min()
-
-
-	var receiverAddrItem rbtree.Item
-	receiverAddrItem = nil
-
-	for i := 0; i < tableLength; i++ {
-		if receiverIndex == i {
-			receiverAddrItem = start.Item()
-			break
-		}
-		start = start.Next()
-	}
-	if receiverAddrItem != nil {
-		receiverAddress := receiverAddrItem.(data.LocationStore).Value
-		receiver = self.Usertable[receiverAddress]
-	} else {
-		fmt.Println("You are doomed")
-	}*/
-	return receiver
+  return nil
 }
 
 //Get given members predecessor Key

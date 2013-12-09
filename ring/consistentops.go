@@ -4,6 +4,7 @@ import (
 	"../data"
 	"fmt"
 	"net"
+  "strconv"
 )
 
 const (
@@ -15,8 +16,10 @@ const (
 /* Insert */
 func (self *Ring) SendDataConsistent(request *data.ConsistentOpArgs, response *RpcResult) error {
 
+
 	consistency := request.Consistency
 	sentData := request.DataStore
+
 
 	//Check if there is a newer machine for this
 	machineAddr := self.getMachineForKey(sentData.Key).Value
@@ -30,16 +33,18 @@ func (self *Ring) SendDataConsistent(request *data.ConsistentOpArgs, response *R
 		inserted := self.KeyValTable.Insert(data.DataStore{(*sentData).Key, (*sentData).Value})
 		response.Success = Btoi(inserted)
 		if response.Success != 1 {
-			fmt.Println("Cannot store data: Should not happen unless machine gone")
+			//fmt.Println("Cannot store data: Should not happen unless machine gone")
+      // TODO
 		} else {
 			switch consistency {
 			case One:
-				return nil
+				response.Success = self.writeToOneReplica(sentData, self.Usertable[myAddr].Id)
 			case Quorum:
 				response.Success = self.writeToQuorumReplicas(sentData, self.Usertable[myAddr].Id)
 			case All:
 				response.Success = self.writeToReplicas(sentData, self.Usertable[myAddr].Id)
 			}
+      self.CmdLog.AddWrite(strconv.Itoa(consistency) + " : " + strconv.Itoa(sentData.Key) + " --> " + sentData.Value)
 
 		}
 	}
@@ -70,7 +75,8 @@ func (self *Ring) RemoveDataConsistent(request *data.ConsistentOpArgs, response 
 		(*args).Value = "##DELETE##"
 		switch consistency {
 		case One:
-			return nil
+			//return nil
+			response.Success = self.writeToOneReplica(args, self.Usertable[myAddr].Id)
 		case Quorum:
 			response.Success = self.writeToQuorumReplicas(args, self.Usertable[myAddr].Id)
 		case All:
@@ -87,6 +93,7 @@ func (self *Ring) GetDataConsistent(request *data.ConsistentOpArgs, response *Rp
 	//	consistency := request.Consistency
 	args := request.DataStore
 
+
 	found := self.KeyValTable.Get(data.DataStore{(*args).Key, ""})
 	response.Member = nil
 	if found == nil {
@@ -101,6 +108,9 @@ func (self *Ring) GetDataConsistent(request *data.ConsistentOpArgs, response *Rp
 	} else {
 		response.Success = 1
 		response.Data = found.(data.DataStore)
+
+    cons := strconv.Itoa(request.Consistency)
+    self.CmdLog.AddRead(cons + " : " + strconv.Itoa(response.Data.Key) + " --> " + response.Data.Value)
 	}
 	return nil
 }
@@ -130,7 +140,7 @@ func (self *Ring) UpdateDataConsistent(request *data.ConsistentOpArgs, response 
 		} else {
 			switch consistency {
 			case One:
-				return nil
+				response.Success = self.writeToOneReplica(sentData, self.Usertable[myAddr].Id)
 			case Quorum:
 				response.Success = self.writeToQuorumReplicas(sentData, self.Usertable[myAddr].Id)
 			case All:

@@ -25,7 +25,7 @@ const (
 )
 
 const (
-	heartbeatThreshold = 50
+	heartbeatThreshold = 100
 )
 
 type Ring struct {
@@ -39,6 +39,7 @@ type Ring struct {
 	Active       bool
 	isGossiping  bool
 	Successor    *data.GroupMember
+  CmdLog       *CommandLog
 }
 
 /*
@@ -61,6 +62,8 @@ func NewMember(hostPort string, faultTolerance int) (ring *Ring, err error) {
 	userKeyVal := rbtree.NewTree(func(a, b rbtree.Item) int { return a.(data.LocationStore).Key - b.(data.LocationStore).Key })
 	keyVal := rbtree.NewTree(func(a, b rbtree.Item) int { return a.(data.DataStore).Key - b.(data.DataStore).Key })
 
+  cmdLog := NewCommandLog(10)
+
 	ring = &Ring{
 		Usertable:    make(map[string]*data.GroupMember),
 		UserKeyTable: userKeyVal,
@@ -72,6 +75,7 @@ func NewMember(hostPort string, faultTolerance int) (ring *Ring, err error) {
 		Active:       true,
 		isGossiping:  false,
 		Successor:    nil,
+    CmdLog:       cmdLog,
 	}
 
 	log.Printf("Creating tcp listener at %s\n", hostPort)
@@ -225,7 +229,7 @@ func (self *Ring) updateMember(updatedMember *data.GroupMember) {
 
 	// TODO Not sure what's going on here?
 	if member.Movement < movement {
-		fmt.Println("You should not be able to join if you already exist or stay if you already started leaving")
+		//fmt.Println("You should not be able to join if you already exist or stay if you already started leaving")
 		return
 	}
 
@@ -335,7 +339,7 @@ func (self *Ring) handleGossip(senderAddr, subject string) {
 		return
 	}
 
-	fmt.Println(senderAddr)
+	//fmt.Println(senderAddr)
 	sender := self.Usertable[senderAddr]
 	if sender != nil {
 		//fmt.Println("Updating")
@@ -439,7 +443,7 @@ func (self *Ring) LeaveGroup() {
 
 	//One Last Gossip to make sure someone knows I have left
 	self.doUserTableGossip()
-	fmt.Println("I am done here")
+	fmt.Println("I a done here")
 }
 
 //Send all your data deleting them as you go to a receving member
@@ -452,11 +456,13 @@ func (self *Ring) bulkDataDeleteAndSend(function string, receiver *data.GroupMem
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
+  length := self.KeyValTable.Len()
 
 	fmt.Println(self.KeyValTable.Len())
-	NextLessThen := self.KeyValTable.FindLE(data.DataStore{key, ""})
+  i := 0
+  NextLessThen := self.KeyValTable.FindLE(data.DataStore{key, ""})
 	for NextLessThen != self.KeyValTable.NegativeLimit() {
-
+    i++
 		sendingData := NextLessThen.Item().(data.DataStore)
 		fmt.Println(sendingData)
 		sendDataPtr := &sendingData
@@ -476,11 +482,14 @@ func (self *Ring) bulkDataDeleteAndSend(function string, receiver *data.GroupMem
 			break
 		}
 		NextLessThen = self.KeyValTable.FindLE(data.DataStore{sendingData.Key, ""})
-	}
+    if (i >= length){
+      break
+    }
+  }
 }
 
 //Send all your data to replicas
-func (self *Ring) bulkDataSendToReplicas() {
+func (self *Ring) bulkDataSendToReplicas(maxRingPos int) {
 
 	min := self.KeyValTable.Min()
 	key := self.getKey()
@@ -491,6 +500,9 @@ func (self *Ring) bulkDataSendToReplicas() {
 	}
 	for min != self.KeyValTable.Limit() {
 		item := min.Item().(data.DataStore)
+    if item.Key > maxRingPos {
+      return
+    }
 		self.writeToReplicas(&item, key)
 		fmt.Println(min.Item().(data.DataStore))
 		min = min.Next()
@@ -542,14 +554,14 @@ func (self *Ring) doUserTableGossip() {
 		if subject.Address != net.JoinHostPort(self.Address, self.Port) {
 			subject.IncrementHeartBeat()
 		}
-		//fmt.Println(subject.Id, subject.Heartbeat)
+    //fmt.Println("ID, Heartbeat:", subject.Id, subject.Heartbeat)
 		if subject.Heartbeat > heartbeatThreshold && subject.Id != -1 {
 			log.Println("MACHINE DEAD!", subject.Id, subject.Heartbeat)
 			if subject.Id == predecessorKey {
 
 				//TODO:: Update replicase
 				fmt.Println("Now you need to update your replicas")
-				self.bulkDataSendToReplicas()
+				self.bulkDataSendToReplicas(subject.Id)
 
 			}
 			//Deletes the member in the userkeytable

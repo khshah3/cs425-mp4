@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	replicaNumber = 1
+	replicaNumber = 2
 )
 
 
@@ -25,7 +25,7 @@ func (self *Ring) writeToNReplicas(sentData *data.DataStore, key, N int) int {
 		key = item.Key
 		//Successor doesnt exist - return. Probably the only member
 		if key == -1 {
-			return 1
+			return i
 		}
 		value := item.Value
 		member := self.Usertable[value]
@@ -51,20 +51,31 @@ func (self *Ring) writeToNReplicas(sentData *data.DataStore, key, N int) int {
 		if i == 0 {
 			fmt.Println("Could not replicate to any machine ")
 		}
-		return 0
-	} else {
-		return 1
 	}
+
+  return i
 }
 
+func (self *Ring) writeToOneReplica(sentData *data.DataStore, key int) int {
+  self.writeToNReplicas(sentData, key, replicaNumber)
+  return 1
+}
 
 //Writes to all the replicas
 func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
-  return self.writeToNReplicas(sentData, key, replicaNumber)
+  i := self.writeToNReplicas(sentData, key, replicaNumber)
+  if i == replicaNumber {
+    return 1
+  }
+  return 0
 }
 
 //Writes to a majority of the replicas
 func (self *Ring) writeToQuorumReplicas(sentData *data.DataStore, key int) int {
   quorum := (replicaNumber + 1) / 2
-  return self.writeToNReplicas(sentData, key, quorum)
+  i := self.writeToNReplicas(sentData, key, replicaNumber)
+  if i >= quorum {
+    return 1
+  }
+  return 0
 }

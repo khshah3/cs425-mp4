@@ -92,6 +92,7 @@ func main() {
 
 		}
 
+
 		switch words[1] {
 		case "insert":
 			ring.Insert(ikey, val, consistency)
@@ -111,6 +112,7 @@ func main() {
 		case "show":
 			ring.PrintMembers()
 			ring.PrintData()
+      ring.CmdLog.Print()
 		}
 	}
 Done:
