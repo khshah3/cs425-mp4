@@ -11,6 +11,7 @@ const (
 	replicaNumber = 1
 )
 
+//Writes the given input to data ro replicas for the current key
 func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
 
 	var result RpcResult
@@ -20,32 +21,29 @@ func (self *Ring) writeToReplicas(sentData *data.DataStore, key int) int {
 	for i != replicaNumber && j < self.UserKeyTable.Len() {
 		fmt.Println(i, j, self.UserKeyTable.Len())
 		j++
-		successorItem := self.UserKeyTable.FindGE(data.LocationStore{key + 1, ""})
-		overFlow := self.UserKeyTable.Limit()
-		if successorItem == overFlow {
-			fmt.Println("overflow")
-			successorItem = self.UserKeyTable.Min()
+
+		item := self.getSuccessor(key)
+		key = item.Key
+		//Successor doesnt exist - return. Probably the only member
+		if key == -1 {
+			return 1
 		}
-		if successorItem != overFlow {
-			item := successorItem.Item()
-			key = item.(data.LocationStore).Key
-			value := item.(data.LocationStore).Value
-			member := self.Usertable[value]
+		value := item.Value
+		member := self.Usertable[value]
 
-			client, err := rpc.DialHTTP("tcp", member.Address)
-			if err != nil {
-				log.Fatal("dialing:", err)
-			}
-			defer client.Close()
-			err = client.Call("Ring.WriteData", sentData, &result)
+		client, err := rpc.DialHTTP("tcp", member.Address)
+		if err != nil {
+			log.Fatal("dialing:", err)
+		}
+		defer client.Close()
+		err = client.Call("Ring.WriteData", sentData, &result)
 
-			if err != nil {
-				fmt.Println("Error sending data:", err)
-			} else if result.Success != 1 {
-				fmt.Println("Error storing data")
-			} else {
-				i++
-			}
+		if err != nil {
+			fmt.Println("Error sending data:", err)
+		} else if result.Success != 1 {
+			fmt.Println("Error storing data")
+		} else {
+			i++
 		}
 	}
 

@@ -145,7 +145,6 @@ func (self *Ring) UpdateData(sentData *data.DataStore, response *RpcResult) erro
 //without deleting the current member. Which we dont want as we will store it as a replica
 func (self *Ring) GetEntryData(location *data.LocationStore, responseData *[]*data.DataStore) error {
 
-	fmt.Println("I cam here")
 	data_t := make([]*data.DataStore, 0)
 
 	False := self.KeyValTable.Limit()
@@ -188,13 +187,6 @@ func (self *Ring) SendLeaveData(sentData *data.DataStore, response *RpcResult) e
   Some other utility functions that may be called over RPC
 */
 func (self *Ring) GetSuccessor(key *int, currSuccessorMember **data.GroupMember) error {
-
-	start := self.UserKeyTable.Min()
-	for i := 0; i < self.UserKeyTable.Len(); i++ {
-		value := start.Item().(data.LocationStore).Value
-		fmt.Println(self.Usertable[value])
-		start = start.Next()
-	}
 
 	successorItem := self.UserKeyTable.FindGE(data.LocationStore{*key + 1, ""})
 	overFlow := self.UserKeyTable.Limit()

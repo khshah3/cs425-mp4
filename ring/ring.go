@@ -11,7 +11,6 @@ import (
 	"../rbtree"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"net/rpc"
 	"strings"
@@ -380,7 +379,7 @@ func (self *Ring) LeaveGroup() {
 	receiver := self.getRandomMember()
 	successor := self.callForSuccessor(key, receiver.Address)
 	fmt.Println(successor)
-	self.bulkDataSend("Ring.SendLeaveData", successor)
+	self.bulkDataDeleteAndSend("Ring.SendLeaveData", successor)
 
 	self.updateMember(data.NewGroupMember(-1, hostPort, 0, DataSentAndLeft))
 
@@ -389,7 +388,8 @@ func (self *Ring) LeaveGroup() {
 	fmt.Println("I am done here")
 }
 
-func (self *Ring) bulkDataSend(function string, receiver *data.GroupMember) {
+//Send all your data deleting them as you go to a receving member
+func (self *Ring) bulkDataDeleteAndSend(function string, receiver *data.GroupMember) {
 
 	hostPort := net.JoinHostPort(self.Address, self.Port)
 	key := self.Usertable[hostPort].Id
@@ -425,6 +425,31 @@ func (self *Ring) bulkDataSend(function string, receiver *data.GroupMember) {
 	}
 }
 
+//Send all your data to replicas
+func (self *Ring) bulkDataSendToReplicas() {
+
+	min := self.KeyValTable.Min()
+	max := self.KeyValTable.Max()
+	key := self.getKey()
+
+	//Tree is empty
+	if min.Equal(self.KeyValTable.Limit()) {
+		return
+	}
+	for min != max {
+		item := min.Item().(data.DataStore)
+		self.writeToReplicas(&item, key)
+		fmt.Println(min.Item().(data.DataStore))
+	}
+
+}
+
+//Get current machines key
+func (self *Ring) getKey() int {
+
+	myAddr := net.JoinHostPort(self.Address, self.Port)
+	return self.Usertable[myAddr].Id
+}
 func (self *Ring) callForSuccessor(myKey int, address string) *data.GroupMember {
 	client, err := rpc.DialHTTP("tcp", address)
 	if err != nil {
@@ -451,30 +476,18 @@ func (self *Ring) doUserTableGossip() {
 	if self.Active == false {
 		return
 	}
+
 	tableLength := self.UserKeyTable.Len()
 
 	// Nobody in the list yet
 	if tableLength < 1 {
 		return
 	}
-	address := net.JoinHostPort(self.Address, self.Port)
-	key := self.Usertable[address].Id
 
-	//Find predecessor
-	item := self.UserKeyTable.FindLE(data.LocationStore{key - 1, ""})
-
-	//If we could not find it we must be at the lower limit of ring
-	if item == (self.UserKeyTable.NegativeLimit()) {
-
-		//Ensure that predecessor is not the lower limit itself
-		if (item.Next() != self.UserKeyTable.FindLE(data.LocationStore{key - 1, ""})) {
-			//Then make the max value in ring predecessor
-			item = self.UserKeyTable.Max()
-		}
-	}
-	predecessorKey := item.Item().(data.LocationStore).Key
-
+	//Get predecessor
+	predecessorKey := self.getPredecessorKey(self.getKey())
 	receiver := self.getRandomMember()
+
 	//fmt.Println(receiver.Address)
 	for _, subject := range self.Usertable {
 
@@ -487,9 +500,7 @@ func (self *Ring) doUserTableGossip() {
 
 				//TODO:: Update replicase
 				fmt.Println("Now you need to update your replicas")
-				/*for {
-					self.writeToReplicas(sentData, key)
-				}*/
+				self.bulkDataSendToReplicas()
 
 			}
 			//Deletes the member in the userkeytable
@@ -501,34 +512,6 @@ func (self *Ring) doUserTableGossip() {
 	}
 }
 
-func (self *Ring) getRandomMember() *data.GroupMember {
-
-	tableLength := self.UserKeyTable.Len()
-
-	receiverIndex := rand.Int() % tableLength
-
-	//Arbitrary
-	start := self.UserKeyTable.Min()
-
-	var receiver *data.GroupMember
-	var receiverAddrItem rbtree.Item
-	receiverAddrItem = nil
-
-	for i := 0; i < tableLength; i++ {
-		if receiverIndex == i {
-			receiverAddrItem = start.Item()
-			break
-		}
-		start = start.Next()
-	}
-	if receiverAddrItem != nil {
-		receiverAddress := receiverAddrItem.(data.LocationStore).Value
-		receiver = self.Usertable[receiverAddress]
-	} else {
-		fmt.Println("You are doomed")
-	}
-	return receiver
-}
 func (self *Ring) doGossip(subject, receiver *data.GroupMember) (err error) {
 	// The message we are sending over UDP, subject can be nil
 	//fmt.Println(subject.Id)
