@@ -4,12 +4,12 @@ import (
 	"./logger"
 	"./ring"
 	"flag"
-  "math/rand"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"os"
-  "time"
+	"time"
 )
 
 // The operations
@@ -54,16 +54,16 @@ func main() {
 		logger.Log("FAILURE", "Ring could not be created")
 	}
 
-  TESTCASES := 100000
+	TESTCASES := 100000
 
-  for i:=0; i<TESTCASES; i++ {
-    k := rand.Intn(1000000)
-    start := time.Now()
-    ring.Lookup(k)
-    elapsed := time.Now().Sub(start)
-    fmt.Println("ELAPSED\t", elapsed.Seconds())
+	for i := 0; i < TESTCASES; i++ {
+		k := rand.Intn(1000000)
+		start := time.Now()
+		ring.Lookup(k, 0)
+		elapsed := time.Now().Sub(start)
+		fmt.Println("ELAPSED\t", elapsed.Seconds())
 	}
-  ring.LeaveGroup()
+	ring.LeaveGroup()
 }
 
 func getHostPort(port string) (hostPort string) {

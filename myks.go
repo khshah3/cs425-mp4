@@ -73,28 +73,35 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		words := strings.SplitN(line, " ", 3)
-		var key, val string
+		words := strings.SplitN(line, " ", 4)
+		var val string
 		var ikey int
+		var consistency int
+		consistency = -1
 
-		if len(words) > 1 {
-			key = words[1]
-			ikey, _ = strconv.Atoi(key)
+		if len(words) > 0 {
+			consistency, _ = strconv.Atoi(words[0])
+
 			if len(words) > 2 {
-				val = words[2]
+				ikey, _ = strconv.Atoi(words[2])
+
+				if len(words) > 3 {
+					val = words[3]
+				}
 			}
+
 		}
 
-		switch words[0] {
+		switch words[1] {
 		case "insert":
-			ring.Insert(ikey, val)
+			ring.Insert(ikey, val, consistency)
 		case "update":
-			ring.Update(ikey, val)
+			ring.Update(ikey, val, consistency)
 		case "remove":
-			ring.Remove(ikey)
+			ring.Remove(ikey, consistency)
 		case "lookup":
 			start := time.Now()
-			ring.Lookup(ikey)
+			ring.Lookup(ikey, consistency)
 			elapsed := time.Now().Sub(start)
 			fmt.Println("ELAPSED TIME:", elapsed)
 		case "leave":
